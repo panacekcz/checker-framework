@@ -35,7 +35,9 @@ public class AnnotationsCounter extends AbstractTypeProcessor {
 
     @Override
     public void typeProcess(TypeElement element, TreePath tree) {
-        tree.getLeaf().accept(scanner, null);
+        String name = element.toString();
+        if (name.startsWith("com.google.common.primitives.")
+                || name.startsWith("com.google.common.base.")) tree.getLeaf().accept(scanner, null);
     }
 
     @Override
