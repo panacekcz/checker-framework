@@ -9,8 +9,8 @@ import org.checkerframework.framework.qual.InheritedAnnotation;
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.METHOD})
 @InheritedAnnotation
-public @interface ThisTag {
-    /** Name of the ThisMut parameter */
+public @interface NewTag {
+    /** Name of the parameter */
     String value();
     /** Upper bound tags */
     String[] bounds() default {};

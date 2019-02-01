@@ -6,6 +6,6 @@ import org.checkerframework.framework.qual.DefaultQualifierInHierarchy;
 import org.checkerframework.framework.qual.SubtypeOf;
 
 @DefaultQualifierInHierarchy
-@SubtypeOf({})
+@SubtypeOf({ReadOnly.class})
 @Target({ElementType.TYPE_USE, ElementType.TYPE_PARAMETER})
 public @interface RefMut {}
