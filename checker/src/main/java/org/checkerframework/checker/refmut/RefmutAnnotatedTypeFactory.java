@@ -4,17 +4,24 @@ import com.sun.source.tree.MethodTree;
 import javax.lang.model.element.AnnotationMirror;
 import org.checkerframework.checker.refmut.qual.ReadOnly;
 import org.checkerframework.checker.refmut.qual.RefMut;
+import org.checkerframework.checker.refmut.qual.Tag;
 import org.checkerframework.common.basetype.BaseAnnotatedTypeFactory;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.dataflow.qual.Pure;
 import org.checkerframework.dataflow.qual.SideEffectFree;
 import org.checkerframework.dataflow.util.PurityUtils;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
+import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedTypeVariable;
+import org.checkerframework.framework.type.QualifierHierarchy;
 import org.checkerframework.framework.type.treeannotator.ListTreeAnnotator;
 import org.checkerframework.framework.type.treeannotator.TreeAnnotator;
 import org.checkerframework.framework.type.typeannotator.ListTypeAnnotator;
 import org.checkerframework.framework.type.typeannotator.TypeAnnotator;
+import org.checkerframework.framework.util.MultiGraphQualifierHierarchy;
+import org.checkerframework.framework.util.MultiGraphQualifierHierarchy.MultiGraphFactory;
 import org.checkerframework.javacutil.AnnotationBuilder;
+import org.checkerframework.javacutil.AnnotationUtils;
+import org.checkerframework.javacutil.ElementUtils;
 
 public class RefmutAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
 
@@ -42,13 +49,54 @@ public class RefmutAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
     }
 
     @Override
+    public QualifierHierarchy createQualifierHierarchy(MultiGraphFactory factory) {
+        return new RefmutQualifierHierarchy(factory);
+    }
+
+    protected class RefmutQualifierHierarchy extends MultiGraphQualifierHierarchy {
+
+        public RefmutQualifierHierarchy(MultiGraphFactory f) {
+            super(f);
+        }
+
+        @Override
+        public boolean isSubtype(AnnotationMirror subAnno, AnnotationMirror superAnno) {
+            if (AnnotationUtils.areSame(subAnno, superAnno)) return true;
+            if (AnnotationUtils.areSame(subAnno, REFMUT)) return true;
+            if (AnnotationUtils.areSame(superAnno, READONLY)) return true;
+            return false;
+        }
+    }
+
+    @Override
     public TypeAnnotator createTypeAnnotator() {
         return new ListTypeAnnotator(new RefmutTypeAnnotator(this), super.createTypeAnnotator());
+    }
+
+    public AnnotationMirror createTagAnnot(String tagName) {
+        AnnotationBuilder builder = new AnnotationBuilder(processingEnv, Tag.class);
+        builder.setValue("value", tagName);
+        return builder.build();
     }
 
     protected class RefmutTypeAnnotator extends TypeAnnotator {
         public RefmutTypeAnnotator(RefmutAnnotatedTypeFactory atypeFactory) {
             super(atypeFactory);
+        }
+
+        @Override
+        public Void visitTypeVariable(AnnotatedTypeVariable type, Void p) {
+            Void v = super.visitTypeVariable(type, p);
+            if (type.isDeclaration()) {
+                // All type params tagged by defautl
+                String paramName = type.getUnderlyingType().asElement().getSimpleName().toString();
+                String tagName = paramName + "M";
+                makeDefaultTag(type, tagName);
+            } else {
+                // Upper bounds read-only
+                makeDefaultReadOnly(type.getUpperBound());
+            }
+            return v;
         }
     }
 
@@ -80,6 +128,16 @@ public class RefmutAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
             }
             return super.visitMethod(node, p);
         }
+    }
+
+    private void makeDefaultTag(AnnotatedTypeVariable atm, String tagName) {
+        AnnotationMirror tagAnnot = createTagAnnot(tagName);
+        System.out.printf(
+                "Adding tag %s to %s%n",
+                tagAnnot, ElementUtils.getVerboseName(atm.getUnderlyingType().asElement()));
+        atm.replaceAnnotation(tagAnnot);
+        // Must replace upper bound annotation, otherwise it would be Tag
+        atm.getUpperBound().replaceAnnotation(READONLY);
     }
 
     private void makeDefaultReadOnly(AnnotatedTypeMirror atm) {
