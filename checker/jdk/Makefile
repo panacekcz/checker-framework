@@ -5,7 +5,7 @@
 # A version of the JDK with just headers/signatures: method bodies contain no bodies.
 CTSYM ?= $(JAVA_HOME)/lib/ct.sym
 
-CHECKER_DIRS = index lock nullness optional
+CHECKER_DIRS = refmut nullness
 
 JAVA_FILES := $(shell find $(CHECKER_DIRS) -name '*.java' | sort)
 
@@ -43,11 +43,9 @@ ANNOTATED_CLASSES_BY_DIR = $(shell find $(CHECKER_DIRS) -name '*.class' | sort)
 # All class files that contain some annotation, possibly with duplicates.
 # These, and only these, need to be extracted from $(CTSYM).
 ANNOTATED_CLASSES = \
-  $(patsubst index/build/%.class,annotated/%.class, \
-  $(patsubst lock/build/%.class,annotated/%.class, \
+  $(patsubst refmut/build/%.class,annotated/%.class, \
   $(patsubst nullness/build/%.class,annotated/%.class, \
-  $(patsubst optional/build/%.class,annotated/%.class, \
-  $(ANNOTATED_CLASSES_BY_DIR)))))
+  $(ANNOTATED_CLASSES_BY_DIR)))
 
 # Extract from $(CTSYM) an unannotated version of every file that will
 # eventually get any annotation.
